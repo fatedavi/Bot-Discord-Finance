@@ -1,0 +1,356 @@
+"""
+Commands Module.
+Contains all Discord slash commands for the finance bot.
+"""
+from datetime import datetime
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from sheets_service import get_sheets_service
+from finance_service import get_finance_service
+import config
+
+
+async def setup_commands(bot: commands.Bot) -> None:
+    """
+    Set up all slash commands for the bot.
+    
+    Args:
+        bot: The Discord bot instance
+    """
+    @app_commands.command(
+        name='masuk',
+        description='Record income transaction'
+    )
+    @app_commands.describe(
+        amount='Amount of income',
+        description='Description of income'
+    )
+    async def masuk(
+        interaction: discord.Interaction,
+        amount: app_commands.Range[int, 1],
+        description: str
+    ) -> None:
+        """Record an income transaction."""
+        try:
+            sheets = get_sheets_service()
+            user_name = interaction.user.name
+
+            result = sheets.add_transaction(
+                transaction_type='Income',
+                amount=amount,
+                description=description,
+                user_name=user_name
+            )
+
+            if result:
+                embed = discord.Embed(
+                    title='✅ Income Recorded',
+                    color=discord.Color.green(),
+                    timestamp=datetime.now()
+                )
+                embed.add_field(
+                    name='Amount',
+                    value=f'Rp {amount:,}',
+                    inline=True
+                )
+                embed.add_field(
+                    name='Description',
+                    value=description,
+                    inline=True
+                )
+                embed.set_footer(text=f'User: {user_name}')
+                await interaction.response.send_message(embed=embed)
+            else:
+                await interaction.response.send_message(
+                    '❌ Failed to record income. Please try again.',
+                    ephemeral=True
+                )
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='keluar',
+        description='Record expense transaction'
+    )
+    @app_commands.describe(
+        amount='Amount of expense',
+        description='Description of expense'
+    )
+    async def keluar(
+        interaction: discord.Interaction,
+        amount: app_commands.Range[int, 1],
+        description: str
+    ) -> None:
+        """Record an expense transaction."""
+        try:
+            sheets = get_sheets_service()
+            user_name = interaction.user.name
+
+            result = sheets.add_transaction(
+                transaction_type='Expense',
+                amount=amount,
+                description=description,
+                user_name=user_name
+            )
+
+            if result:
+                embed = discord.Embed(
+                    title='✅ Expense Recorded',
+                    color=discord.Color.red(),
+                    timestamp=datetime.now()
+                )
+                embed.add_field(
+                    name='Amount',
+                    value=f'Rp {amount:,}',
+                    inline=True
+                )
+                embed.add_field(
+                    name='Description',
+                    value=description,
+                    inline=True
+                )
+                embed.set_footer(text=f'User: {user_name}')
+                await interaction.response.send_message(embed=embed)
+            else:
+                await interaction.response.send_message(
+                    '❌ Failed to record expense. Please try again.',
+                    ephemeral=True
+                )
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='balance',
+        description='Check current balance'
+    )
+    async def balance(interaction: discord.Interaction) -> None:
+        """Check the current balance (total income, expense, and balance)."""
+        try:
+            sheets = get_sheets_service()
+            finance = get_finance_service()
+
+            if sheets.is_empty():
+                embed = discord.Embed(
+                    title='💰 Balance Report',
+                    color=discord.Color.blue(),
+                    description='No transactions recorded yet.'
+                )
+                await interaction.response.send_message(embed=embed)
+                return
+
+            total_income, total_expense, balance = finance.get_balance()
+
+            embed = discord.Embed(
+                title='💰 Balance Report',
+                color=discord.Color.blue(),
+                timestamp=datetime.now()
+            )
+            embed.add_field(
+                name='Total Income',
+                value=f'Rp {total_income:,}',
+                inline=True
+            )
+            embed.add_field(
+                name='Total Expense',
+                value=f'Rp {total_expense:,}',
+                inline=True
+            )
+            embed.add_field(
+                name='Balance',
+                value=f'Rp {balance:,}',
+                inline=False
+            )
+
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='report',
+        description='Show monthly financial report'
+    )
+    async def report(interaction: discord.Interaction) -> None:
+        """Show the monthly financial report for the current month."""
+        try:
+            finance = get_finance_service()
+            now = datetime.now()
+
+            monthly_data = finance.get_monthly_report(now.year, now.month)
+
+            embed = discord.Embed(
+                title=f'📊 Monthly Report - {monthly_data["month_name"]}',
+                color=discord.Color.gold(),
+                timestamp=datetime.now()
+            )
+            embed.add_field(
+                name='Income',
+                value=f'Rp {monthly_data["income"]:,}',
+                inline=True
+            )
+            embed.add_field(
+                name='Expense',
+                value=f'Rp {monthly_data["expense"]:,}',
+                inline=True
+            )
+            embed.add_field(
+                name='Net Profit',
+                value=f'Rp {monthly_data["net_profit"]:,}',
+                inline=False
+            )
+
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='topuser',
+        description='Show user with highest income'
+    )
+    async def topuser(interaction: discord.Interaction) -> None:
+        """Show the user who contributed the most income."""
+        try:
+            finance = get_finance_service()
+
+            top = finance.get_top_income_user()
+
+            if top is None:
+                embed = discord.Embed(
+                    title='🏆 Top Income Contributor',
+                    color=discord.Color.gold(),
+                    description='No income recorded yet.'
+                )
+                await interaction.response.send_message(embed=embed)
+                return
+
+            embed = discord.Embed(
+                title='🏆 Top Income Contributor',
+                color=discord.Color.gold(),
+                timestamp=datetime.now()
+            )
+            embed.add_field(
+                name='User',
+                value=top['user'],
+                inline=True
+            )
+            embed.add_field(
+                name='Total Income',
+                value=f'Rp {top["amount"]:,}',
+                inline=True
+            )
+
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='recent',
+        description='Show recent transactions'
+    )
+    @app_commands.describe(
+        limit='Number of transactions to show (max 10)'
+    )
+    async def recent(
+        interaction: discord.Interaction,
+        limit: app_commands.Range[int, 1, 10] = 5
+    ) -> None:
+        """Show the most recent transactions."""
+        try:
+            sheets = get_sheets_service()
+
+            recent_transactions = sheets.get_recent_transactions(limit)
+
+            if not recent_transactions:
+                embed = discord.Embed(
+                    title='📋 Recent Transactions',
+                    color=discord.Color.blue(),
+                    description='No transactions recorded yet.'
+                )
+                await interaction.response.send_message(embed=embed)
+                return
+
+            embed = discord.Embed(
+                title='📋 Recent Transactions',
+                color=discord.Color.blue(),
+                timestamp=datetime.now()
+            )
+
+            for i, txn in enumerate(recent_transactions, 1):
+                emoji = '💚' if txn['Type'] == 'Income' else '❤️'
+                amount_str = f"Rp {txn['Amount']:,}"
+                embed.add_field(
+                    name=f'{i}. {emoji} {txn["Type"]}',
+                    value=f'{amount_str} - {txn["Description"]}\n'
+                          f'👤 {txn["User"]} | {txn["Tanggal"]}',
+                    inline=False
+                )
+
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name='help',
+        description='Show all available commands'
+    )
+    async def help_command(interaction: discord.Interaction) -> None:
+        """Show help information about all commands."""
+        embed = discord.Embed(
+            title='📚 Finance Bot Commands',
+            color=discord.Color.blue(),
+            timestamp=datetime.now()
+        )
+
+        commands_list = [
+            ('/masuk', 'Record income', '!masuk 50000 desain logo'),
+            ('/keluar', 'Record expense', '!keluar 25000 makan siang'),
+            ('/balance', 'Check total balance', None),
+            ('/report', 'Monthly financial report', None),
+            ('/topuser', 'Top income contributor', None),
+            ('/recent', 'Recent transactions', '!recent 5'),
+        ]
+
+        for cmd, desc, example in commands_list:
+            value = desc
+            if example:
+                value += f'\nExample: `{example}`'
+            embed.add_field(name=cmd, value=value, inline=False)
+
+        embed.set_footer(
+            text='Use / before each command | Cooldown: 3 seconds'
+        )
+
+        await interaction.response.send_message(embed=embed)
+
+    bot.tree.add_command(masuk)
+    bot.tree.add_command(keluar)
+    bot.tree.add_command(balance)
+    bot.tree.add_command(report)
+    bot.tree.add_command(topuser)
+    bot.tree.add_command(recent)
+    bot.tree.add_command(help_command)

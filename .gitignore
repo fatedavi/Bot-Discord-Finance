@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Google Credentials
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+
+# Logs
+logs/
+*.log
