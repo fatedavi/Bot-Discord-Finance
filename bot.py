@@ -4,6 +4,8 @@ Entry point for the bot with logging and anti-spam features.
 """
 
 import os
+import random
+import pathlib
 import logging
 import asyncio
 import discord
@@ -70,6 +72,7 @@ def load_env():
 # ==============================
 
 intents = discord.Intents.default()
+intents.message_content = True
 
 bot = commands.Bot(
     command_prefix="!",
@@ -100,6 +103,28 @@ async def on_ready():
     except Exception as e:
 
         logger.error(f"Failed to register commands: {e}")
+
+
+# ==============================
+# ON MESSAGE (Auto-reply trigger)
+# ==============================
+
+ASSETS_DIR = pathlib.Path("assets/img")
+
+
+@bot.event
+async def on_message(message):
+
+    if message.author == bot.user:
+        return
+
+    if "siapa wanita cantik" in message.content.lower():
+        images = list(ASSETS_DIR.iterdir())
+        if images:
+            chosen = random.choice(images)
+            await message.channel.send(file=discord.File(chosen))
+
+    await bot.process_commands(message)
 
 
 # ==============================

@@ -2,6 +2,8 @@
 Commands Module.
 Contains all Discord slash commands for the finance bot.
 """
+import io
+import pathlib
 from datetime import datetime
 import discord
 from discord import app_commands
@@ -333,6 +335,7 @@ async def setup_commands(bot: commands.Bot) -> None:
             ('/report', 'Monthly financial report', None),
             ('/topuser', 'Top income contributor', None),
             ('/recent', 'Recent transactions', '!recent 5'),
+            ('/pdf', 'Convert image to PDF', None),
         ]
 
         for cmd, desc, example in commands_list:
@@ -347,6 +350,46 @@ async def setup_commands(bot: commands.Bot) -> None:
 
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(
+        name='pdf',
+        description='Convert image to PDF'
+    )
+    @app_commands.describe(
+        file='Image file to convert (.png, .jpg, .jpeg, .gif, .bmp, .webp)'
+    )
+    async def pdf_command(
+        interaction: discord.Interaction,
+        file: discord.Attachment
+    ) -> None:
+        """Convert an image to PDF."""
+        try:
+            ext = pathlib.Path(file.filename).suffix.lower()
+            allowed_img = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
+
+            if ext not in allowed_img:
+                await interaction.response.send_message(
+                    '❌ File must be an image (.png, .jpg, .jpeg, .gif, .bmp, .webp)',
+                    ephemeral=True
+                )
+                return
+
+            await interaction.response.defer()
+
+            import img2pdf
+            file_bytes = await file.read()
+            out_name = pathlib.Path(file.filename).stem + '.pdf'
+            pdf_bytes = img2pdf.convert(file_bytes)
+
+            await interaction.followup.send(
+                file=discord.File(io.BytesIO(pdf_bytes), filename=out_name)
+            )
+
+        except Exception as e:
+            await interaction.followup.send(
+                f'❌ Error: {str(e)}',
+                ephemeral=True
+            )
+
     bot.tree.add_command(masuk)
     bot.tree.add_command(keluar)
     bot.tree.add_command(balance)
@@ -354,3 +397,4 @@ async def setup_commands(bot: commands.Bot) -> None:
     bot.tree.add_command(topuser)
     bot.tree.add_command(recent)
     bot.tree.add_command(help_command)
+    bot.tree.add_command(pdf_command)
