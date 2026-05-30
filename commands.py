@@ -12,6 +12,7 @@ from discord.ext import commands
 from sheets_service import get_sheets_service
 from finance_service import get_finance_service
 import config
+from gallery import GalleryView
 
 
 async def setup_commands(bot: commands.Bot) -> None:
@@ -390,6 +391,25 @@ async def setup_commands(bot: commands.Bot) -> None:
                 ephemeral=True
             )
 
+    @app_commands.command(
+        name='test-anniversary',
+        description='Preview anniversary message (test only)'
+    )
+    async def test_anniversary(interaction: discord.Interaction) -> None:
+        """Send anniversary preview to current channel."""
+        await interaction.response.defer()
+
+        images = sorted(config.ASSETS_DIR.iterdir())
+        if not images:
+            await interaction.followup.send("No images found.", ephemeral=True)
+            return
+
+        first = images[0]
+        file = discord.File(first, filename="gallery.jpeg")
+        view = GalleryView(images, title="🎉 Happy Anniversary ❤️", description=config.ANNIVERSARY_TEXT)
+        embed = view._build_embed()
+        await interaction.followup.send(file=file, embed=embed, view=view)
+
     bot.tree.add_command(masuk)
     bot.tree.add_command(keluar)
     bot.tree.add_command(balance)
@@ -398,3 +418,4 @@ async def setup_commands(bot: commands.Bot) -> None:
     bot.tree.add_command(recent)
     bot.tree.add_command(help_command)
     bot.tree.add_command(pdf_command)
+    bot.tree.add_command(test_anniversary)

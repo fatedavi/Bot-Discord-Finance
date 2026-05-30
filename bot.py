@@ -5,7 +5,6 @@ Entry point for the bot with logging and anti-spam features.
 
 import os
 import random
-import pathlib
 import logging
 import asyncio
 from datetime import datetime
@@ -14,7 +13,9 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 import config
+from config import ANNIVERSARY_TEXT, ASSETS_DIR
 from commands import setup_commands
+from gallery import GalleryView
 
 
 # ==============================
@@ -112,31 +113,6 @@ async def on_ready():
 # ON MESSAGE (Auto-reply trigger)
 # ==============================
 
-ASSETS_DIR = pathlib.Path("assets/img")
-
-ANNIVERSARY_TEXT = (
-    "**Happy Anniversary, Shalsabila Thabina Firdaus** ❤️\n\n"
-    "Nggak terasa ya, kita sudah sampai di titik ini. Rasanya baru kemarin "
-    "kita memulai semuanya, saling mengenal, saling memahami, sampai akhirnya "
-    "bisa melewati banyak hal bersama.\n\n"
-    "Terima kasih sudah menjadi bagian dari perjalanan hidupku. Terima kasih "
-    "untuk setiap tawa, cerita, perhatian, dan semua momen yang sudah kita "
-    "lewati bersama. Mungkin hubungan kita nggak selalu sempurna, tapi aku "
-    "bersyukur karena kita selalu berusaha untuk tetap berjalan berdampingan.\n\n"
-    "Aku berharap hari ini bukan hanya menjadi pengingat tentang berapa lama "
-    "kita bersama, tapi juga tentang betapa berharganya setiap waktu yang sudah "
-    "kita lalui. Semoga ke depannya kita masih bisa membuat lebih banyak "
-    "kenangan, merayakan lebih banyak pencapaian, dan saling menemani dalam "
-    "keadaan apa pun.\n\n"
-    "Aku mungkin tidak selalu bisa mengungkapkan semuanya dengan kata-kata, "
-    "tapi satu hal yang pasti, aku sangat bersyukur karena ada kamu di hidupku.\n\n"
-    "Selamat anniversary, sayang. Terima kasih sudah bertahan, terima kasih "
-    "sudah percaya, dan terima kasih sudah menjadi rumah yang selalu ingin "
-    "aku tuju.\n\n"
-    "Aku sayang kamu, hari ini, besok, dan seterusnya. ❤️✨\n\n"
-    "— Dari seseorang yang selalu bersyukur memilikimu."
-)
-
 _anniversary_sent_date = None
 
 
@@ -230,43 +206,11 @@ async def send_anniversary_message(channel):
         ))
         return
 
-    main_embed = discord.Embed(
-        title="🎉 Happy Anniversary ❤️",
-        description=ANNIVERSARY_TEXT,
-        color=discord.Color.magenta()
-    )
-    main_embed.set_footer(text="- Dapiw")
-    await channel.send(embed=main_embed)
-
-    # Batch 1: max 10 images
-    batch1 = images[:10]
-    files1 = []
-    embeds1 = []
-
-    for i, path in enumerate(batch1):
-        f = discord.File(path, filename=f"img_{i}.jpeg")
-        files1.append(f)
-        e = discord.Embed(color=discord.Color.magenta())
-        e.set_image(url=f"attachment://img_{i}.jpeg")
-        embeds1.append(e)
-
-    await channel.send(files=files1, embeds=embeds1)
-
-    # Batch 2: remaining images
-    if len(images) > 10:
-        batch2 = images[10:]
-        files2 = []
-        embeds2 = []
-
-        for i, path in enumerate(batch2):
-            idx = 10 + i
-            f = discord.File(path, filename=f"img_{idx}.jpeg")
-            files2.append(f)
-            e = discord.Embed(color=discord.Color.magenta())
-            e.set_image(url=f"attachment://img_{idx}.jpeg")
-            embeds2.append(e)
-
-        await channel.send(files=files2, embeds=embeds2)
+    first = images[0]
+    file = discord.File(first, filename="gallery.jpeg")
+    view = GalleryView(images, title="🎉 Happy Anniversary ❤️", description=ANNIVERSARY_TEXT)
+    embed = view._build_embed()
+    await channel.send(file=file, embed=embed, view=view)
 
     logger.info(f"Anniversary message sent with {len(images)} images")
 
