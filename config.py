@@ -17,3 +17,5 @@ COOLDOWN_TYPE = "user"
 SHEET_HEADERS = ['Tanggal', 'User', 'Type', 'Amount', 'Description']
 
 LOG_FILE = 'logs/bot.log'
+
+ANIVERSARY_CHANNEL_ID = 1469735670976348326
